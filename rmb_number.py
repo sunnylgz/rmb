@@ -46,12 +46,8 @@ def horizontalProjectionMat(srcImg):
 
   width = srcImg.shape[1]
   height = srcImg.shape[0]
-  projectValArray = np.zeros(height)
-
-  for h in range(height):
-    for w in range(width):
-      if binImg[h,w] == 0:
-        projectValArray[h] += 1
+  pixelMap = binImg == 0
+  projectValArray = pixelMap.sum(axis=1)
 
   roiList = []
   inBlock = False
@@ -73,12 +69,8 @@ def verticalProjectionMat(srcImg):
 
   width = srcImg.shape[1]
   height = srcImg.shape[0]
-  projectValArray = np.zeros(width)
-
-  for w in range(width):
-    for h in range(height):
-      if binImg[h,w] == 0:
-        projectValArray[w] += 1
+  pixelMap = binImg == 0
+  projectValArray = pixelMap.sum(axis=0)
 
   roiList = []
   inBlock = False
