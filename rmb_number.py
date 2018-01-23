@@ -36,7 +36,10 @@ import numpy as np
 import cv2 as cv
 import datetime,time
 
-
+NAME = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
+        'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
+        'U', 'V', 'W', 'X', 'Y', 'Z']
 def horizontalProjectionMat(srcImg):
   binImg  = cv.blur(srcImg, (3,3))
   _,binImg = cv.threshold(binImg, 0, 255, cv.THRESH_OTSU)
@@ -66,7 +69,7 @@ def horizontalProjectionMat(srcImg):
 
 def verticalProjectionMat(srcImg):
   binImg  = cv.blur(srcImg, (3,3))
-  _,binImg = cv.threshold(binImg, 0, 255, cv.THRESH_OTSU);
+  _,binImg = cv.threshold(binImg, 0, 255, cv.THRESH_OTSU)
 
   width = srcImg.shape[1]
   height = srcImg.shape[0]
@@ -104,6 +107,54 @@ def recognize_number():
       templateImg = cv.imread("res/picture/2.jpg", 0)
       split = cv.resize(a[j], (templateImg.shape[1], templateImg.shape[0]), interpolation=cv.INTER_AREA)
       cv.imwrite(szName, split)
+
+  recognized_name = []
+  for i in range(4):
+    szName = "res/split/%d.jpg" % (i)
+    srcImg = cv.imread(szName, 0)
+    binImg  = cv.blur(srcImg, (3,3))
+    _,binImg = cv.threshold(binImg, 0, 255, cv.THRESH_OTSU)
+
+    max_cnt = 0
+    match = 0
+    for j in range(36):
+      nszName = "res/picture/%d.jpg" % (j)
+      templateImg = cv.imread(nszName, 0)
+      tempImg  = cv.blur(templateImg, (3,3))
+      _,tempImg = cv.threshold(tempImg, 0, 255, cv.THRESH_OTSU)
+
+      compare = binImg == tempImg
+      count = compare.sum()
+
+      if max_cnt < count:
+        max_cnt = count
+        match = j
+
+    recognized_name.append(NAME[match])
+  for i in range(4,10):
+    szName = "res/split/%d.jpg" % (i)
+    srcImg = cv.imread(szName, 0)
+    binImg  = cv.blur(srcImg, (3,3))
+    _,binImg = cv.threshold(binImg, 0, 255, cv.THRESH_OTSU)
+
+    max_cnt = 0
+    match = 0
+    for j in range(10):
+      nszName = "res/picture/%d.jpg" % (j)
+      templateImg = cv.imread(nszName, 0)
+      tempImg  = cv.blur(templateImg, (3,3))
+      _,tempImg = cv.threshold(tempImg, 0, 255, cv.THRESH_OTSU)
+
+      compare = binImg == tempImg
+      count = compare.sum()
+
+      if max_cnt < count:
+        max_cnt = count
+        match = j
+
+    recognized_name.append(NAME[match])
+
+  print(recognized_name)
 
 def main(args):
   recognize_number()
