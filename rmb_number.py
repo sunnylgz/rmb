@@ -100,6 +100,34 @@ def verticalProjectionMat(srcImg):
 
   return roiList
 
+def find_match_template(srcImg, isLetter=True, isNumber=True):
+  starti = 0
+  endi = 36
+  if not isNumber:
+    starti = 10
+  if not isLetter:
+    endi = 10
+
+  binImg  = cv.blur(srcImg, (3,3))
+  _,binImg = cv.threshold(binImg, 0, 255, cv.THRESH_OTSU)
+
+  max_cnt = 0
+  match = 0
+  for j in range(starti, endi):
+    nszName = "res/picture/%d.jpg" % (j)
+    templateImg = cv.imread(nszName, 0)
+    tempImg  = cv.blur(templateImg, (3,3))
+    _,tempImg = cv.threshold(tempImg, 0, 255, cv.THRESH_OTSU)
+
+    compare = binImg == tempImg
+    count = compare.sum()
+    #count = np.sum(np.logical_and(np.logical_not(binImg), np.logical_not(tempImg)))
+
+    if max_cnt < count:
+      max_cnt = count
+      match = j
+
+  return NAME[match], max_cnt
 
 def recognize_number():
   srcImg = cv.imread(area_fname, 0)
@@ -115,60 +143,60 @@ def recognize_number():
       cv.imwrite(szName, split)
 
   recognized_name = []
-  for i in range(4):
+  szName = "res/split/0.jpg"
+  srcImg = cv.imread(szName, 0)
+  name, count = find_match_template(srcImg, isNumber = False)
+  recognized_name.append(name)
+
+  match_count = []
+  letter_index = []
+  for i in range(1,4):
     szName = "res/split/%d.jpg" % (i)
     srcImg = cv.imread(szName, 0)
-    binImg  = cv.blur(srcImg, (3,3))
-    _,binImg = cv.threshold(binImg, 0, 255, cv.THRESH_OTSU)
+    name, count = find_match_template(srcImg)
+    if name >= 'A':
+      letter_index.append(i)
+      match_count.append(count)
 
-    max_cnt = 0
-    match = 0
-    for j in range(36):
-      nszName = "res/picture/%d.jpg" % (j)
-      templateImg = cv.imread(nszName, 0)
-      tempImg  = cv.blur(templateImg, (3,3))
-      _,tempImg = cv.threshold(tempImg, 0, 255, cv.THRESH_OTSU)
+    recognized_name.append(name)
 
-      compare = binImg == tempImg
-      count = compare.sum()
+  if len(letter_index) > 1:
+    max_matched = match_count.index(max(match_count))
+    del letter_index[max_matched]
+    for i in letter_index:
+      szName = "res/split/%d.jpg" % (i)
+      srcImg = cv.imread(szName, 0)
+      name, _ = find_match_template(srcImg, isLetter = False)
+      recognized_name[i] = name
+  elif len(letter_index) == 0:
+    max_count = 0
+    for i in range(1,4):
+      szName = "res/split/%d.jpg" % (i)
+      srcImg = cv.imread(szName, 0)
+      name, count = find_match_template(srcImg, isNumber = False)
+      if count > max_count:
+        max_count = count
+        letter_index = i
+        letter = name
 
-      if max_cnt < count:
-        max_cnt = count
-        match = j
+    recognized_name[letter_index] = letter
 
-    recognized_name.append(NAME[match])
   for i in range(4,10):
     szName = "res/split/%d.jpg" % (i)
     srcImg = cv.imread(szName, 0)
-    binImg  = cv.blur(srcImg, (3,3))
-    _,binImg = cv.threshold(binImg, 0, 255, cv.THRESH_OTSU)
-
-    max_cnt = 0
-    match = 0
-    for j in range(10):
-      nszName = "res/picture/%d.jpg" % (j)
-      templateImg = cv.imread(nszName, 0)
-      tempImg  = cv.blur(templateImg, (3,3))
-      _,tempImg = cv.threshold(tempImg, 0, 255, cv.THRESH_OTSU)
-
-      compare = binImg == tempImg
-      count = compare.sum()
-
-      if max_cnt < count:
-        max_cnt = count
-        match = j
-
-    recognized_name.append(NAME[match])
+    name, _ = find_match_template(srcImg, isLetter = False)
+    recognized_name.append(name)
 
   print(recognized_name)
 
 def main(args):
-  clip_roi("res/1.jpg")
+  clip_roi(args.input)
   recognize_number()
 
 def parse_arguments(argv):
     parser = argparse.ArgumentParser()
     
+    parser.add_argument('-i', '--input', type=str, default = 'res/1.jpg', help='the input image')
     parser.add_argument('-o', '--out', type=str, default = '', help='save output to disk')
     parser.add_argument('--classifier_filename', 
         help='Classifier model file name as a pickle (.pkl) file. ' + 
