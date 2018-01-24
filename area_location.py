@@ -67,26 +67,50 @@ def area_location_1(img):
   '''
   return bbox
 
-def area_location_1(img):
+def get_lines(lines_in):
+  if cv.__version__ < '3.0':
+      return lines_in[0]
+  return [l[0] for l in lines_in]
+
+def area_location(img):
   bbox = [0, 0, img.shape[1], img.shape[0]]
   binImg  = cv.blur(img, (3,3))
 
   factor = 2.5
-  cannyThreshold = 80
+  cannyThreshold = 50
   canny_edges = cv.Canny(binImg, cannyThreshold, cannyThreshold*factor)
+  lines = cv.HoughLinesP(canny_edges,rho=1,theta=np.pi/180,threshold=50,minLineLength=200,maxLineGap=15)
+  print(lines.shape)
   #cv.imwrite("temp.png", binImg)
 
-  cv.imshow("", binImg)
+  '''
+  while len(lines) > 30:
+    cannyThreshold += 2
+    canny_edges = cv.Canny(binImg, cannyThreshold, cannyThreshold*factor)
+    lines = cv.HoughLines(canny_edges,1,np.pi/180,50,100,100)
+  '''
 
-  #_,contours,_ = cv.findContours(binImg, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
-  # Seems it will treat white as object, but my test image background is white and the object is black
-  # so it will return the entire area os the while image is using RETR_EXTERNAL
-  _,contours,_ = cv.findContours(binImg, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+  result = img.copy()
+  for x1,y1,x2,y2 in get_lines(lines):    
+    cv.line(result,(x1,y1),(x2,y2),(0,255,0),2) 
 
-  print(len(contours))
-  img = cv.drawContours(img, contours, -1, 0, 3)
-  cv.imwrite("temp.png", img)
-  cv.imshow("", img)
+  '''
+  for line in lines[0]:
+    print(line)
+    rho = line[0]
+    theta= line[1]
+    if  (theta < (np.pi/4. )) or (theta > (3.*np.pi/4.0)):
+      pt1 = (int(rho/np.cos(theta)),0)    
+      pt2 = (int((rho-result.shape[0]*np.sin(theta))/np.cos(theta)),result.shape[0])    
+      cv.line( result, pt1, pt2, (255))    
+    else:
+      pt1 = (0,int(rho/np.sin(theta)))    
+      pt2 = (result.shape[1], int((rho-result.shape[1]*np.cos(theta))/np.sin(theta)))    
+      cv.line(result, pt1, pt2, (0), 3)  
+  '''
+  #cv.imshow("edges", canny_edges)
+  cv.imshow("result", result)
+
   cv.waitKey(0)
 
   '''
