@@ -23,6 +23,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+# Reference
+# http://blog.csdn.net/m0_38025293/article/details/73350507
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
