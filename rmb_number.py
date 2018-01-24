@@ -40,6 +40,20 @@ NAME = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
         'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
         'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
         'U', 'V', 'W', 'X', 'Y', 'Z']
+
+area_fname = "res/temp.jpg"
+def clip_roi(filename):
+  area_size = np.array([130, 35])
+  start_pos = np.array([20, 223])
+  end_pos = area_size + start_pos
+  srcImg = cv.imread(filename, 0)
+  templateImg = cv.imread("res/template.jpg", 0)
+  srcImg = cv.resize(srcImg, (templateImg.shape[1], templateImg.shape[0]), interpolation=cv.INTER_AREA)
+
+  split = srcImg[start_pos[1]:end_pos[1], start_pos[0]:end_pos[0]]
+  cv.imwrite(area_fname, split)
+
+
 def horizontalProjectionMat(srcImg):
   binImg  = cv.blur(srcImg, (3,3))
   _,binImg = cv.threshold(binImg, 0, 255, cv.THRESH_OTSU)
@@ -88,7 +102,7 @@ def verticalProjectionMat(srcImg):
 
 
 def recognize_number():
-  srcImg = cv.imread("res/rmbresult.jpg", 0)
+  srcImg = cv.imread(area_fname, 0)
   b = verticalProjectionMat(srcImg)
 
   for i in range(len(b)):
@@ -149,6 +163,7 @@ def recognize_number():
   print(recognized_name)
 
 def main(args):
+  clip_roi("res/1.jpg")
   recognize_number()
 
 def parse_arguments(argv):
