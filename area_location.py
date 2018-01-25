@@ -39,25 +39,31 @@ import numpy as np
 import cv2 as cv
 import datetime,time
 
-def area_location_1(img):
+def area_location(img, bg_black=True):
   bbox = [0, 0, img.shape[1], img.shape[0]]
   binImg  = cv.blur(img, (3,3))
 
+  if bg_black:
+    ThresholdVal = 100
+  else:
+    ThresholdVal = 240
   #_,binImg = cv.threshold(binImg, 0, 255, cv.THRESH_OTSU)
-  _,binImg = cv.threshold(binImg, 240, 255, cv.THRESH_BINARY)
-  #cv.imwrite("temp.png", binImg)
+  _,binImg = cv.threshold(binImg, ThresholdVal, 255, cv.THRESH_BINARY)
 
-  cv.imshow("", binImg)
+  if not bg_black:
+    binImg = 255 - binImg
+  cv.imwrite("binary.png", binImg)
 
-  #_,contours,_ = cv.findContours(binImg, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
+  _,contours,_ = cv.findContours(binImg, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
   # Seems it will treat white as object, but my test image background is white and the object is black
   # so it will return the entire area os the while image is using RETR_EXTERNAL
-  _,contours,_ = cv.findContours(binImg, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+  #_,contours,_ = cv.findContours(binImg, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
   print(len(contours))
-  img = cv.drawContours(img, contours, -1, 0, 3)
-  cv.imwrite("temp.png", img)
-  cv.imshow("", img)
+  color_img = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
+  color_img = cv.drawContours(color_img, contours, -1, (0, 0, 255), 3)
+  cv.imwrite("contours.png", color_img)
+  cv.imshow("", color_img)
   cv.waitKey(0)
 
   '''
@@ -72,30 +78,34 @@ def get_lines(lines_in):
       return lines_in[0]
   return [l[0] for l in lines_in]
 
-def area_location(img):
+# TODO: Canny can return good results, but HoughLinesP can't
+def area_location_canny(img):
   bbox = [0, 0, img.shape[1], img.shape[0]]
-  binImg  = cv.blur(img, (3,3))
+  binImg  = cv.GaussianBlur(img, (3,3), 0)
+  #binImg  = cv.blur(img, (3,3))
 
   factor = 2.5
   cannyThreshold = 50
+  houghThreshold = 50
   canny_edges = cv.Canny(binImg, cannyThreshold, cannyThreshold*factor)
-  lines = cv.HoughLinesP(canny_edges,rho=1,theta=np.pi/180,threshold=50,minLineLength=200,maxLineGap=15)
-  print(lines.shape)
-  #cv.imwrite("temp.png", binImg)
+  lines = cv.HoughLinesP(canny_edges,rho=1,theta=np.pi/180,threshold=houghThreshold,minLineLength=100,maxLineGap=100)
+  #lines = cv.HoughLines(canny_edges, 1, np.pi/180, 150, 0, 0)
 
-  '''
+  
   while len(lines) > 30:
-    cannyThreshold += 2
+    houghThreshold += 2
     canny_edges = cv.Canny(binImg, cannyThreshold, cannyThreshold*factor)
-    lines = cv.HoughLines(canny_edges,1,np.pi/180,50,100,100)
-  '''
+    lines = cv.HoughLinesP(canny_edges,rho=1,theta=np.pi/180,threshold=houghThreshold,minLineLength=100,maxLineGap=100)
+  
+  cv.imwrite("edges.png", canny_edges)
+  print(lines.shape)
+  result = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
 
-  result = img.copy()
   for x1,y1,x2,y2 in get_lines(lines):    
-    cv.line(result,(x1,y1),(x2,y2),(0,255,0),2) 
+    cv.line(result,(x1,y1),(x2,y2),(0,0,255),2) 
 
   '''
-  for line in lines[0]:
+  for line in get_lines(lines):
     print(line)
     rho = line[0]
     theta= line[1]
@@ -108,8 +118,10 @@ def area_location(img):
       pt2 = (result.shape[1], int((rho-result.shape[1]*np.cos(theta))/np.sin(theta)))    
       cv.line(result, pt1, pt2, (0), 3)  
   '''
+  cv.imwrite("lines.png", result)
   #cv.imshow("edges", canny_edges)
   cv.imshow("result", result)
+
 
   cv.waitKey(0)
 
@@ -122,7 +134,7 @@ def area_location(img):
 
 def main(args):
   srcImg = cv.imread(args.input, 0)
-  area_location(srcImg)
+  area_location(srcImg, False)
 
 def parse_arguments(argv):
     parser = argparse.ArgumentParser()
