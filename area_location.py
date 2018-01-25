@@ -39,8 +39,55 @@ import numpy as np
 import cv2 as cv
 import datetime,time
 
+def find_vertex(contour, minAreaBox):
+  approxCurve	=	cv.approxPolyDP(contour, 3, True)
+  print("approx curve shape: ", approxCurve.shape)
+
+  candidates = approxCurve
+  c_left = [candidates[0,0]]
+  c_right = [candidates[0,0]]
+  c_bottom = [candidates[0,0]]
+  c_top = [candidates[0,0]]
+  candidates = candidates[1:,:]
+
+  flags = [False, False, False, False] # topleft, topright, bottomright, bottomleft
+
+  for candidate in candidates:
+    if candidate[0,0] < c_left[0][0]:
+      c_left.clear()
+      c_left.append(candidate[0])
+    elif candidate[0,0] == c_left[0][0]:
+      c_left.append(candidate[0])
+
+    if candidate[0,1] < c_top[0][1]:
+      c_top.clear()
+      c_top.append(candidate[0])
+    elif candidate[0,1] == c_top[0][1]:
+      c_top.append(candidate[0])
+
+    if candidate[0,0] > c_right[0][0]:
+      c_right.clear()
+      c_right.append(candidate[0])
+    elif candidate[0,0] == c_right[0][0]:
+      c_right.append(candidate[0])
+
+    if candidate[0,1] > c_bottom[0][1]:
+      c_bottom.clear()
+      c_bottom.append(candidate[0])
+    elif candidate[0,1] == c_bottom[0][1]:
+      c_bottom.append(candidate[0])
+
+
+  print("left: ", c_left)
+  print("right: ", c_right)
+  print("top: ", c_top)
+  print("bottom: ", c_bottom)
+
+  return approxCurve
+
 def area_location(img, bg_black=True):
   bbox = [0, 0, img.shape[1], img.shape[0]]
+  min_area = img.shape[1]*img.shape[0] * 0.1
   binImg  = cv.blur(img, (3,3))
 
   if bg_black:
@@ -59,18 +106,36 @@ def area_location(img, bg_black=True):
   # so it will return the entire area os the while image is using RETR_EXTERNAL
   #_,contours,_ = cv.findContours(binImg, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
-  print(len(contours))
+  box_candidate = []
+  contours_candidate = []
+  for contour in contours:
+    rect = cv.minAreaRect(contour)
+    print(rect)
+    box = cv.boxPoints(rect)
+    box =np.int0(box)
+    print(box)
+    (box_w,box_h)=np.int0(rect[1])
+    print(box_w,box_h)
+
+    if (box_w * box_h < min_area):
+      continue
+    angle = rect[2]
+    if (box_h > box_w):
+      angle += 90
+
+    print("angle is ", angle)
+    vertex = find_vertex(contour, box)
+    box_candidate.append(box)
+    contours_candidate.append(contour)
+    print("contour shape: ", contour.shape)
+
   color_img = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
-  color_img = cv.drawContours(color_img, contours, -1, (0, 0, 255), 3)
+  color_img = cv.drawContours(color_img, contours_candidate, -1, (0, 0, 255), 3)
+  color_img = cv.drawContours(color_img, box_candidate, -1, (0, 255, 0), 3)
   cv.imwrite("contours.png", color_img)
   cv.imshow("", color_img)
   cv.waitKey(0)
 
-  '''
-  for contour in contours:
-    rect = cv.minAreaRect(contour)
-    print(rect)
-  '''
   return bbox
 
 def get_lines(lines_in):
@@ -134,13 +199,17 @@ def area_location_canny(img):
 
 def main(args):
   srcImg = cv.imread(args.input, 0)
-  area_location(srcImg, False)
+  if args.white:
+    area_location(srcImg)
+  else:
+    area_location(srcImg, False)
 
 def parse_arguments(argv):
     parser = argparse.ArgumentParser()
     
     parser.add_argument('-i', '--input', type=str, default = 'res/1.jpg', help='the input image')
     parser.add_argument('-o', '--out', type=str, default = '', help='save output to disk')
+    parser.add_argument('-w', '--white', action="store_true", help='white backgroud')
     parser.add_argument('--classifier_filename', 
         help='Classifier model file name as a pickle (.pkl) file. ' + 
         'For training this is the output and for classification this is an input.')
