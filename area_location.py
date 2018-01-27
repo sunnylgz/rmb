@@ -225,9 +225,33 @@ def area_location(img, bg_black=True):
   for v in crossPnts:
     cv.circle(tempimg, (v[0], v[1]), 2, (255, 0, 0))
 
+  # sort by the distance from (0,0)
+  crossPnts = sorted(crossPnts, key=lambda point: points_distance((0,0), point))
+  lefttop = crossPnts[0]
+  rightbottom = crossPnts[-1]
+  # TODO: need deal w/ len(crossPnts) > 4
+  if crossPnts[1][1] < crossPnts[2][1]:
+    righttop = crossPnts[1]
+    leftbottom = crossPnts[2]
+  else:
+    righttop = crossPnts[2]
+    leftbottom = crossPnts[1]
+  cv.putText(tempimg, "lefttop", tuple(lefttop), cv.FONT_HERSHEY_PLAIN, 1, 255)
+  cv.putText(tempimg, "righttop", tuple(righttop), cv.FONT_HERSHEY_PLAIN, 1, 255)
+  cv.putText(tempimg, "leftbottom", tuple(leftbottom), cv.FONT_HERSHEY_PLAIN, 1, 255)
+  cv.putText(tempimg, "rightbottom", tuple(rightbottom), cv.FONT_HERSHEY_PLAIN, 1, 255)
+
+  #AffineMatrix = cv.getAffineTransform(np.float32([lefttop, righttop, rightbottom]),
+  #                                    np.float32([[0,0], [img.shape[1], 0], [img.shape[1], img.shape[0]]]))
+  #resultimg = cv.warpAffine(img, AffineMatrix, (img.shape[1], img.shape[0]))
+  PerspectiveMatrix = cv.getPerspectiveTransform(np.float32([lefttop, righttop, leftbottom, rightbottom]),
+                                      np.float32([[0,0], [img.shape[1], 0], [0, img.shape[0]], [img.shape[1], img.shape[0]]]))
+  resultimg = cv.warpPerspective(img, PerspectiveMatrix, (img.shape[1], img.shape[0]))
+
   cv.imwrite("contours.png", color_img)
   cv.imwrite("temp.png", tempimg)
-  cv.imshow("", color_img)
+  cv.imwrite("result.png", resultimg)
+  cv.imshow("", resultimg)
   cv.waitKey(0)
 
   return bbox
