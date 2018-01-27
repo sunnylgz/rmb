@@ -38,7 +38,31 @@ import pickle
 import numpy as np
 import cv2 as cv
 import datetime,time
+import math
 
+def find_cross_point(line1, line2):
+  x1,y1,x2,y2 = line1
+  x3,y3,x4,y4 = line2
+
+  # for vertical lines, there's no cross point
+  # '1' is experiental number
+  if abs((x1-x2)/(y1-y2)) + abs((x3-x4)/(y3-y4))  < 1:
+    return None
+
+  d = (x1-x2) * (y3-y4) - (y1-y2) * (x3-x4)
+  ad = d / ((x1-x2)*(x3-x4))
+  print(ad)
+  # for parallel lines, there's no cross point
+  # '2.5' is experiental number
+  if abs(ad) > 2.5: #d != 0:
+    x = ((x1*y2 - y1*x2) * (x3-x4) - (x1-x2) * (x3*y4 - y3*x4)) // d
+    y = ((x1*y2 - y1*x2) * (y3-y4) - (y1-y2) * (x3*y4 - y3*x4)) // d
+
+    return [x, y]
+
+  return None
+
+# TODO: not completed
 def find_vertex(contour, minAreaBox):
   approxCurve	=	cv.approxPolyDP(contour, 3, True)
   print("approx curve shape: ", approxCurve.shape)
@@ -84,6 +108,32 @@ def find_vertex(contour, minAreaBox):
   print("bottom: ", c_bottom)
 
   return approxCurve
+
+def points_distance(point1, point2):
+  x1, y1 = point1
+  x2, y2 = point2
+
+  return math.sqrt((y2-y1)**2 + (x2-x1)**2)
+def vertex_point_filter(points, w, h):
+  minDistance = 20
+  i = 0
+  while i < len(points):
+    if points[i][0] < -10 or points[i][0] > w+10 or points[i][1] < -10 or points[i][1] > h+10:
+      del points[i]
+      continue
+    points[i][0] = max(0, points[i][0])
+    points[i][1] = max(0, points[i][1])
+    points[i][0] = min(w-1, points[i][0])
+    points[i][1] = min(h-1, points[i][1])
+    i += 1
+  for i in range(len(points)):
+    j = i+1
+    while j < len(points):
+      if points_distance(points[i], points[j]) < minDistance:
+        del points[j]
+      else:
+        j += 1
+  return points
 
 def area_location(img, bg_black=True):
   bbox = [0, 0, img.shape[1], img.shape[0]]
@@ -132,7 +182,51 @@ def area_location(img, bg_black=True):
   color_img = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
   color_img = cv.drawContours(color_img, contours_candidate, -1, (0, 0, 255), 3)
   color_img = cv.drawContours(color_img, box_candidate, -1, (0, 255, 0), 3)
+  for v in vertex:
+    cv.circle(color_img, (v[0,0], v[0,1]), 2, (255, 0, 0))
+
+  tempimg = np.zeros(img.shape, dtype=np.uint8)
+  tempimg = cv.drawContours(tempimg, contours_candidate, -1, 255)
+  lines = cv.HoughLinesP(tempimg,rho=1,theta=np.pi/180,threshold=50,minLineLength=min(img.shape)/3,maxLineGap=100)
+  print("find lines number: ", len(lines))
+  tempimg = np.zeros(img.shape, dtype=np.uint8)
+  lines = get_lines(lines)
+  if len(lines) < 4:
+    raise RuntimeError("Can't find the 4 sides of one object")
+
+  #for x1,y1,x2,y2 in lines:
+  #  cv.line(tempimg,(x1,y1),(x2,y2),(255,255,0),2)
+
+  crossPnts = []
+  for i in range(len(lines)):
+    line1= lines[i]
+    for j in range(i, len(lines)):
+      line2 = lines[j]
+      crossP = find_cross_point(line1, line2)
+      if crossP != None:
+        crossPnts.append(crossP)
+        print("a vertex")
+        '''
+        tempimg = np.zeros(img.shape, dtype=np.uint8)
+        x1,y1,x2,y2 = line1
+        cv.line(tempimg,(x1,y1),(x2,y2),(255,255,0),2)
+        cv.circle(tempimg, (crossP[0], crossP[1]), 2, (255, 0, 0))
+        x1,y1,x2,y2 = line2
+        cv.line(tempimg,(x1,y1),(x2,y2),(255,255,0),2)
+        cv.imshow("", tempimg)
+        cv.waitKey(0)
+        '''
+
+  print("find vertex", len(crossPnts), crossPnts)
+  crossPnts = vertex_point_filter(crossPnts, img.shape[1], img.shape[0])
+  print("after filtering", len(crossPnts), crossPnts)
+  if len(crossPnts) < 4:
+    raise RuntimeError("Can't find the 4 vertex of one object")
+  for v in crossPnts:
+    cv.circle(tempimg, (v[0], v[1]), 2, (255, 0, 0))
+
   cv.imwrite("contours.png", color_img)
+  cv.imwrite("temp.png", tempimg)
   cv.imshow("", color_img)
   cv.waitKey(0)
 
